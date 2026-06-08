@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "testa-expo-CtfSj9",
-    "slug": "testa-expo-CtfSj9",
+    "name": "Headache Tracker",
+    "slug": "headache-tracker",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "testaexpoctfsj9",
+    "scheme": "headachetracker",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"
@@ -34,7 +34,8 @@
             "imageWidth": 76
           }
         }
-      ]
+      ],
+      "expo-widgets"
     ],
     "experiments": {
       "typedRoutes": true,
