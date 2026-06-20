@@ -165,6 +165,11 @@ export default function HomeScreen() {
       return;
     }
 
+    if (medicationPrompt.isDebug) {
+      resetMedicationPrompt();
+      return;
+    }
+
     await recordMedication(medicationPrompt.slot, medicationName, medicationPrompt.dateKey);
     resetMedicationPrompt();
   }
@@ -255,7 +260,7 @@ export default function HomeScreen() {
               <View style={styles.notificationText}>
                 <ThemedText type="smallBold">Debug</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  Invia una notifica locale di test senza salvare dati.
+                  Invia una notifica locale con bottoni rapidi senza salvare dati.
                 </ThemedText>
               </View>
               <ThemedText

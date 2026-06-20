@@ -24,11 +24,13 @@ const ACTIONS: Notifications.NotificationAction[] = [
 }));
 
 type HeadacheNotificationData = {
+  debug?: boolean;
   slot?: HeadacheSlot;
 };
 
 export type HeadacheMedicationPromptRequest = {
   dateKey: string;
+  isDebug?: boolean;
   intensity?: number;
   slot: HeadacheSlot;
 };
@@ -156,20 +158,16 @@ export async function sendTestHeadacheNotification() {
     return false;
   }
 
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync(HEADACHE_CHANNEL, {
-      name: 'Promemoria mal di testa',
-      importance: Notifications.AndroidImportance.DEFAULT,
-      vibrationPattern: [0, 180, 120, 180],
-      sound: null,
-    });
-  }
+  await configureHeadacheNotificationActions();
+
+  const slot = new Date().getHours() >= 19 ? 'evening' : 'afternoon';
 
   await Notifications.scheduleNotificationAsync({
     content: {
       title: 'Notifica di test',
-      body: 'Debug notifiche: nessun dato e stato salvato.',
-      data: { debug: true },
+      body: 'Scegli un valore: il test non salva dati.',
+      categoryIdentifier: HEADACHE_CATEGORY,
+      data: { debug: true, slot },
     },
     trigger: null,
   });
@@ -188,8 +186,11 @@ export async function handleHeadacheNotificationResponse(
   }
 
   const dateKey = getDateKey();
+  const isDebug = data.debug === true;
 
-  await saveHeadacheIntensity(data.slot, intensity, dateKey);
+  if (!isDebug) {
+    await saveHeadacheIntensity(data.slot, intensity, dateKey);
+  }
 
   if (intensity === 0) {
     return undefined;
@@ -197,6 +198,7 @@ export async function handleHeadacheNotificationResponse(
 
   return {
     dateKey,
+    isDebug,
     intensity,
     slot: data.slot,
   } satisfies HeadacheMedicationPromptRequest;
