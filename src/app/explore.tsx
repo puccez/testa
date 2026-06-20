@@ -12,6 +12,7 @@ import {
   SLOTS,
   formatDateLabel,
   getIntensity,
+  getMedication,
   getRecordedCheckCount,
 } from '@/lib/headache-log';
 
@@ -102,6 +103,8 @@ export default function DetailsScreen() {
 function HistoryRow({ entry }: { entry: HeadacheEntry }) {
   const intensity = getIntensity(entry);
   const checks = getRecordedCheckCount(entry);
+  const afternoonMedication = getMedication(entry, 'afternoon');
+  const eveningMedication = getMedication(entry, 'evening');
 
   return (
     <ThemedView type="backgroundElement" style={styles.row}>
@@ -112,12 +115,26 @@ function HistoryRow({ entry }: { entry: HeadacheEntry }) {
         </ThemedText>
       </View>
       <View style={styles.slotValues}>
-        <ThemedText type="small" themeColor="textSecondary">
-          {SLOTS.afternoon.shortLabel}: {entry.afternoon ?? '-'}
-        </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          {SLOTS.evening.shortLabel}: {entry.evening ?? '-'}
-        </ThemedText>
+        <View>
+          <ThemedText type="small" themeColor="textSecondary">
+            {SLOTS.afternoon.shortLabel}: {entry.afternoon ?? '-'}
+          </ThemedText>
+          {afternoonMedication ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              med: {afternoonMedication}
+            </ThemedText>
+          ) : null}
+        </View>
+        <View>
+          <ThemedText type="small" themeColor="textSecondary">
+            {SLOTS.evening.shortLabel}: {entry.evening ?? '-'}
+          </ThemedText>
+          {eveningMedication ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              med: {eveningMedication}
+            </ThemedText>
+          ) : null}
+        </View>
       </View>
       <ThemedText style={styles.rowValue}>{intensity ?? '-'}</ThemedText>
     </ThemedView>
@@ -189,4 +206,3 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
 });
-

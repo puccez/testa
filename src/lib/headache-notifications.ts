@@ -1,7 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-import { HeadacheSlot, saveHeadacheIntensity } from '@/lib/headache-log';
+import { HeadacheSlot, getDateKey, saveHeadacheIntensity } from '@/lib/headache-log';
 
 export const HEADACHE_CATEGORY = 'headache_check';
 export const HEADACHE_CHANNEL = 'headache-checks';
@@ -25,6 +25,12 @@ const ACTIONS: Notifications.NotificationAction[] = [
 
 type HeadacheNotificationData = {
   slot?: HeadacheSlot;
+};
+
+export type HeadacheMedicationPromptRequest = {
+  dateKey: string;
+  intensity: number;
+  slot: HeadacheSlot;
 };
 
 Notifications.setNotificationHandler({
@@ -149,5 +155,17 @@ export async function handleHeadacheNotificationResponse(
     return undefined;
   }
 
-  return saveHeadacheIntensity(data.slot, intensity);
+  const dateKey = getDateKey();
+
+  await saveHeadacheIntensity(data.slot, intensity, dateKey);
+
+  if (intensity === 0) {
+    return undefined;
+  }
+
+  return {
+    dateKey,
+    intensity,
+    slot: data.slot,
+  } satisfies HeadacheMedicationPromptRequest;
 }

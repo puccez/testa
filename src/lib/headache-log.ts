@@ -5,7 +5,9 @@ export type HeadacheSlot = 'afternoon' | 'evening';
 export type HeadacheEntry = {
   date: string;
   afternoon?: number;
+  afternoonMedication?: string;
   evening?: number;
+  eveningMedication?: string;
   updatedAt: string;
 };
 
@@ -16,6 +18,11 @@ const STORAGE_KEY = 'headache-log:v1';
 export const SLOTS: Record<HeadacheSlot, { label: string; shortLabel: string; time: string }> = {
   afternoon: { label: 'Dopo pranzo', shortLabel: '15:00', time: '15:00' },
   evening: { label: 'Dopo cena', shortLabel: '22:00', time: '22:00' },
+};
+
+const MEDICATION_FIELDS: Record<HeadacheSlot, keyof Pick<HeadacheEntry, 'afternoonMedication' | 'eveningMedication'>> = {
+  afternoon: 'afternoonMedication',
+  evening: 'eveningMedication',
 };
 
 export function getDateKey(date = new Date()) {
@@ -61,6 +68,37 @@ export function getRecordedCheckCount(entry?: HeadacheEntry) {
   }
 
   return Number(typeof entry.afternoon === 'number') + Number(typeof entry.evening === 'number');
+}
+
+export function getMedication(entry: HeadacheEntry | undefined, slot: HeadacheSlot) {
+  const medication = entry?.[MEDICATION_FIELDS[slot]];
+
+  return typeof medication === 'string' && medication.trim().length > 0
+    ? medication.trim()
+    : undefined;
+}
+
+export function getMedicationSuggestions(log: HeadacheLog) {
+  const suggestions = new Map<string, string>();
+  const entries = Object.values(log).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+
+  entries.forEach((entry) => {
+    (Object.keys(SLOTS) as HeadacheSlot[]).forEach((slot) => {
+      const medication = getMedication(entry, slot);
+
+      if (!medication) {
+        return;
+      }
+
+      const key = medication.toLocaleLowerCase('it-IT');
+
+      if (!suggestions.has(key)) {
+        suggestions.set(key, medication);
+      }
+    });
+  });
+
+  return Array.from(suggestions.values());
 }
 
 export function getCalendarDays(days: number) {
@@ -115,7 +153,36 @@ export async function saveHeadacheIntensity(
   return nextLog;
 }
 
+export async function saveHeadacheMedication(
+  slot: HeadacheSlot,
+  medication: string,
+  dateKey = getDateKey()
+) {
+  const trimmedMedication = medication.trim();
+
+  if (!trimmedMedication) {
+    return loadHeadacheLog();
+  }
+
+  const log = await loadHeadacheLog();
+  const current = log[dateKey] ?? { date: dateKey, updatedAt: new Date().toISOString() };
+
+  const next = {
+    ...current,
+    [MEDICATION_FIELDS[slot]]: trimmedMedication,
+    updatedAt: new Date().toISOString(),
+  };
+
+  const nextLog = {
+    ...log,
+    [dateKey]: next,
+  };
+
+  await saveHeadacheLog(nextLog);
+
+  return nextLog;
+}
+
 export async function clearHeadacheLog() {
   await AsyncStorage.removeItem(STORAGE_KEY);
 }
-

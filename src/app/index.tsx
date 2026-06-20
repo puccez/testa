@@ -1,6 +1,15 @@
 import * as Notifications from 'expo-notifications';
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ContributionCalendar } from '@/components/contribution-calendar';
@@ -15,10 +24,12 @@ import {
   SLOTS,
   getDateKey,
   getIntensity,
+  getMedicationSuggestions,
   getRecordedCheckCount,
   HeadacheSlot,
 } from '@/lib/headache-log';
 import {
+  HeadacheMedicationPromptRequest,
   handleHeadacheNotificationResponse,
   scheduleHeadacheNotifications,
 } from '@/lib/headache-notifications';
@@ -26,10 +37,13 @@ import {
 export default function HomeScreen() {
   const safeAreaInsets = useSafeAreaInsets();
   const theme = useTheme();
-  const { isLoading, log, recordIntensity, refresh } = useHeadacheLog();
+  const { isLoading, log, recordIntensity, recordMedication, refresh } = useHeadacheLog();
   const [notificationStatus, setNotificationStatus] = useState<'idle' | 'enabled' | 'denied'>(
     'idle'
   );
+  const [medicationPrompt, setMedicationPrompt] = useState<HeadacheMedicationPromptRequest>();
+  const [isMedicationInputOpen, setIsMedicationInputOpen] = useState(false);
+  const [medicationName, setMedicationName] = useState('');
   const todayKey = getDateKey();
   const todayEntry = log[todayKey];
   const todayIntensity = getIntensity(todayEntry);
@@ -55,20 +69,55 @@ export default function HomeScreen() {
       paddingBottom: Spacing.four,
     },
   });
+  const medicationSuggestions = useMemo(() => {
+    const query = medicationName.trim().toLocaleLowerCase('it-IT');
+
+    return getMedicationSuggestions(log)
+      .filter((suggestion) => {
+        return !query || suggestion.toLocaleLowerCase('it-IT').includes(query);
+      })
+      .slice(0, 4);
+  }, [log, medicationName]);
+
+  const resetMedicationPrompt = useCallback(() => {
+    setMedicationPrompt(undefined);
+    setIsMedicationInputOpen(false);
+    setMedicationName('');
+  }, []);
+
+  const showMedicationPrompt = useCallback((prompt: HeadacheMedicationPromptRequest) => {
+    setMedicationPrompt(prompt);
+    setIsMedicationInputOpen(false);
+    setMedicationName('');
+  }, []);
+
+  const processNotificationResponse = useCallback(
+    async (response: Notifications.NotificationResponse) => {
+      const prompt = await handleHeadacheNotificationResponse(response);
+
+      await refresh();
+      await Notifications.clearLastNotificationResponseAsync();
+
+      if (prompt) {
+        showMedicationPrompt(prompt);
+      }
+    },
+    [refresh, showMedicationPrompt]
+  );
 
   useEffect(() => {
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      void handleHeadacheNotificationResponse(response).then(() => refresh());
+      void processNotificationResponse(response);
     });
 
     void Notifications.getLastNotificationResponseAsync().then((response) => {
       if (response) {
-        return handleHeadacheNotificationResponse(response).then(() => refresh());
+        return processNotificationResponse(response);
       }
     });
 
     return () => subscription.remove();
-  }, [refresh]);
+  }, [processNotificationResponse]);
 
   async function handleEnableNotifications() {
     const scheduled = await scheduleHeadacheNotifications();
@@ -82,6 +131,15 @@ export default function HomeScreen() {
   async function handleZeroNow() {
     const slot = new Date().getHours() >= 19 ? 'evening' : 'afternoon';
     await recordIntensity(slot, 0);
+  }
+
+  async function handleSaveMedication() {
+    if (!medicationPrompt || !medicationName.trim()) {
+      return;
+    }
+
+    await recordMedication(medicationPrompt.slot, medicationName, medicationPrompt.dateKey);
+    resetMedicationPrompt();
   }
 
   return (
@@ -173,6 +231,116 @@ export default function HomeScreen() {
             </ThemedView>
           </>
         )}
+
+        <Modal
+          animationType="fade"
+          transparent
+          visible={!!medicationPrompt}
+          onRequestClose={resetMedicationPrompt}>
+          <View style={styles.modalOverlay}>
+            <ThemedView type="backgroundElement" style={styles.medicationModal}>
+              <View style={styles.medicationHeader}>
+                <ThemedText type="subtitle">Medicinale</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {medicationPrompt
+                    ? `${SLOTS[medicationPrompt.slot].label}, intensita ${medicationPrompt.intensity}`
+                    : ''}
+                </ThemedText>
+              </View>
+
+              {!isMedicationInputOpen ? (
+                <>
+                  <ThemedText>Hai preso medicinali?</ThemedText>
+                  <View style={styles.modalActions}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={resetMedicationPrompt}
+                      style={({ pressed }) => pressed && styles.pressed}>
+                      <ThemedView style={styles.secondaryButton}>
+                        <ThemedText type="smallBold">No</ThemedText>
+                      </ThemedView>
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => setIsMedicationInputOpen(true)}
+                      style={({ pressed }) => pressed && styles.pressed}>
+                      <ThemedView style={[styles.primaryButton, { backgroundColor: theme.text }]}>
+                        <ThemedText
+                          type="smallBold"
+                          style={[styles.primaryButtonText, { color: theme.background }]}>
+                          Si
+                        </ThemedText>
+                      </ThemedView>
+                    </Pressable>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <TextInput
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                    onChangeText={setMedicationName}
+                    onSubmitEditing={handleSaveMedication}
+                    placeholder="Nome medicinale"
+                    placeholderTextColor={theme.textSecondary}
+                    returnKeyType="done"
+                    style={[
+                      styles.medicationInput,
+                      {
+                        backgroundColor: theme.background,
+                        borderColor: theme.backgroundSelected,
+                        color: theme.text,
+                      },
+                    ]}
+                    value={medicationName}
+                  />
+
+                  {medicationSuggestions.length > 0 ? (
+                    <View style={styles.suggestionList}>
+                      {medicationSuggestions.map((suggestion) => (
+                        <Pressable
+                          key={suggestion}
+                          accessibilityRole="button"
+                          onPress={() => setMedicationName(suggestion)}
+                          style={({ pressed }) => pressed && styles.pressed}>
+                          <ThemedView style={styles.suggestionButton}>
+                            <ThemedText type="smallBold">{suggestion}</ThemedText>
+                          </ThemedView>
+                        </Pressable>
+                      ))}
+                    </View>
+                  ) : null}
+
+                  <View style={styles.modalActions}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={resetMedicationPrompt}
+                      style={({ pressed }) => pressed && styles.pressed}>
+                      <ThemedView style={styles.secondaryButton}>
+                        <ThemedText type="smallBold">Annulla</ThemedText>
+                      </ThemedView>
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={handleSaveMedication}
+                      style={({ pressed }) => [
+                        pressed && styles.pressed,
+                        !medicationName.trim() && styles.disabled,
+                      ]}>
+                      <ThemedView style={[styles.primaryButton, { backgroundColor: theme.text }]}>
+                        <ThemedText
+                          type="smallBold"
+                          style={[styles.primaryButtonText, { color: theme.background }]}>
+                          Salva
+                        </ThemedText>
+                      </ThemedView>
+                    </Pressable>
+                  </View>
+                </>
+              )}
+            </ThemedView>
+          </View>
+        </Modal>
       </ThemedView>
     </ScrollView>
   );
@@ -209,12 +377,46 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontVariant: ['tabular-nums'],
   },
+  disabled: {
+    opacity: 0.4,
+  },
   header: {
     gap: Spacing.two,
   },
   loadingCard: {
     alignItems: 'center',
     borderRadius: 8,
+    padding: Spacing.four,
+  },
+  medicationHeader: {
+    gap: Spacing.one,
+  },
+  medicationInput: {
+    borderRadius: 8,
+    borderWidth: 1,
+    fontSize: 16,
+    fontWeight: '500',
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
+  medicationModal: {
+    borderCurve: 'continuous',
+    borderRadius: 8,
+    gap: Spacing.three,
+    maxWidth: 420,
+    padding: Spacing.three,
+    width: '100%',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+    justifyContent: 'flex-end',
+  },
+  modalOverlay: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.42)',
+    flex: 1,
+    justifyContent: 'center',
     padding: Spacing.four,
   },
   notificationCard: {
@@ -230,8 +432,26 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: Spacing.one,
   },
+  pressed: {
+    opacity: 0.72,
+  },
+  primaryButton: {
+    borderRadius: 20,
+    minWidth: 86,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
+  primaryButtonText: {
+    textAlign: 'center',
+  },
   scrollView: {
     flex: 1,
+  },
+  secondaryButton: {
+    borderRadius: 20,
+    minWidth: 86,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
   },
   section: {
     gap: Spacing.three,
@@ -252,10 +472,19 @@ const styles = StyleSheet.create({
   summaryContent: {
     gap: Spacing.one,
   },
+  suggestionButton: {
+    borderRadius: 20,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
+  suggestionList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+  },
   todayValue: {
     fontSize: 56,
     fontVariant: ['tabular-nums'],
     lineHeight: 60,
   },
 });
-

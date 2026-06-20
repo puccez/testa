@@ -6,6 +6,7 @@ import {
   clearHeadacheLog,
   loadHeadacheLog,
   saveHeadacheIntensity,
+  saveHeadacheMedication,
 } from '@/lib/headache-log';
 
 export function useHeadacheLog() {
@@ -32,6 +33,14 @@ export function useHeadacheLog() {
     []
   );
 
+  const recordMedication = useCallback(
+    async (slot: HeadacheSlot, medication: string, dateKey: string) => {
+      const nextLog = await saveHeadacheMedication(slot, medication, dateKey);
+      setLog(nextLog);
+    },
+    []
+  );
+
   const clear = useCallback(async () => {
     await clearHeadacheLog();
     setLog({});
@@ -41,6 +50,7 @@ export function useHeadacheLog() {
     clear,
     isLoading,
     log,
+    recordMedication,
     recordIntensity,
     refresh,
   };
