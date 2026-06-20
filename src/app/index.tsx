@@ -34,6 +34,7 @@ import {
   HeadacheMedicationPromptRequest,
   handleHeadacheNotificationResponse,
   scheduleHeadacheNotifications,
+  sendTestHeadacheNotification,
 } from '@/lib/headache-notifications';
 
 export default function HomeScreen() {
@@ -43,6 +44,9 @@ export default function HomeScreen() {
   const [notificationStatus, setNotificationStatus] = useState<'idle' | 'enabled' | 'denied'>(
     'idle'
   );
+  const [debugNotificationStatus, setDebugNotificationStatus] = useState<
+    'idle' | 'sending' | 'sent' | 'denied'
+  >('idle');
   const [medicationPrompt, setMedicationPrompt] = useState<HeadacheMedicationPromptRequest>();
   const [isMedicationInputOpen, setIsMedicationInputOpen] = useState(false);
   const [medicationName, setMedicationName] = useState('');
@@ -139,6 +143,12 @@ export default function HomeScreen() {
   async function handleEnableNotifications() {
     const scheduled = await scheduleHeadacheNotifications();
     setNotificationStatus(scheduled ? 'enabled' : 'denied');
+  }
+
+  async function handleSendTestNotification() {
+    setDebugNotificationStatus('sending');
+    const sent = await sendTestHeadacheNotification();
+    setDebugNotificationStatus(sent ? 'sent' : 'denied');
   }
 
   async function handleRecord(slot: HeadacheSlot, intensity: number) {
@@ -238,6 +248,29 @@ export default function HomeScreen() {
                   : notificationStatus === 'denied'
                     ? 'Permesso negato'
                     : 'Attiva'}
+              </ThemedText>
+            </ThemedView>
+
+            <ThemedView type="backgroundElement" style={styles.debugCard}>
+              <View style={styles.notificationText}>
+                <ThemedText type="smallBold">Debug</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  Invia una notifica locale di test senza salvare dati.
+                </ThemedText>
+              </View>
+              <ThemedText
+                type="linkPrimary"
+                onPress={
+                  debugNotificationStatus === 'sending' ? undefined : handleSendTestNotification
+                }
+                accessibilityRole="button">
+                {debugNotificationStatus === 'sending'
+                  ? 'Invio...'
+                  : debugNotificationStatus === 'sent'
+                    ? 'Inviata'
+                    : debugNotificationStatus === 'denied'
+                      ? 'Permesso negato'
+                      : 'Test'}
               </ThemedText>
             </ThemedView>
           </>
@@ -501,6 +534,15 @@ const styles = StyleSheet.create({
   notificationText: {
     flex: 1,
     gap: Spacing.one,
+  },
+  debugCard: {
+    alignItems: 'center',
+    borderCurve: 'continuous',
+    borderRadius: 8,
+    flexDirection: 'row',
+    gap: Spacing.three,
+    justifyContent: 'space-between',
+    padding: Spacing.three,
   },
   pressed: {
     opacity: 0.72,

@@ -145,6 +145,38 @@ export async function scheduleHeadacheNotifications() {
   return true;
 }
 
+export async function sendTestHeadacheNotification() {
+  if (Platform.OS === 'web') {
+    return false;
+  }
+
+  const granted = await ensureNotificationPermissions();
+
+  if (!granted) {
+    return false;
+  }
+
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync(HEADACHE_CHANNEL, {
+      name: 'Promemoria mal di testa',
+      importance: Notifications.AndroidImportance.DEFAULT,
+      vibrationPattern: [0, 180, 120, 180],
+      sound: null,
+    });
+  }
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'Notifica di test',
+      body: 'Debug notifiche: nessun dato e stato salvato.',
+      data: { debug: true },
+    },
+    trigger: null,
+  });
+
+  return true;
+}
+
 export async function handleHeadacheNotificationResponse(
   response: Notifications.NotificationResponse
 ) {
