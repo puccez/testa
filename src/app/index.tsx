@@ -24,8 +24,10 @@ import {
   SLOTS,
   getDateKey,
   getIntensity,
+  getMedication,
   getMedicationSuggestions,
   getRecordedCheckCount,
+  HeadacheEntry,
   HeadacheSlot,
 } from '@/lib/headache-log';
 import {
@@ -91,6 +93,21 @@ export default function HomeScreen() {
     setMedicationName('');
   }, []);
 
+  const openMedicationInput = useCallback(
+    (slot: HeadacheSlot) => {
+      const currentMedication = getMedication(todayEntry, slot);
+
+      setMedicationPrompt({
+        dateKey: todayKey,
+        intensity: todayEntry?.[slot],
+        slot,
+      });
+      setMedicationName(currentMedication ?? '');
+      setIsMedicationInputOpen(true);
+    },
+    [todayEntry, todayKey]
+  );
+
   const processNotificationResponse = useCallback(
     async (response: Notifications.NotificationResponse) => {
       const prompt = await handleHeadacheNotificationResponse(response);
@@ -144,6 +161,8 @@ export default function HomeScreen() {
 
   return (
     <ScrollView
+      automaticallyAdjustContentInsets={false}
+      contentInsetAdjustmentBehavior="never"
       style={[styles.scrollView, { backgroundColor: theme.background }]}
       contentInset={insets}
       contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}>
@@ -173,7 +192,9 @@ export default function HomeScreen() {
                   {todayChecks}/2 rilevazioni
                 </ThemedText>
               </View>
-              <IosQuickAction onPress={handleZeroNow} />
+              <View style={styles.summaryAction}>
+                <IosQuickAction onPress={handleZeroNow} />
+              </View>
             </ThemedView>
 
             <ContributionCalendar log={log} />
@@ -188,23 +209,13 @@ export default function HomeScreen() {
 
               <View style={styles.checkList}>
                 {(Object.keys(SLOTS) as HeadacheSlot[]).map((slot) => (
-                  <ThemedView key={slot} type="backgroundElement" style={styles.checkCard}>
-                    <View style={styles.checkHeader}>
-                      <View>
-                        <ThemedText type="smallBold">{SLOTS[slot].label}</ThemedText>
-                        <ThemedText type="small" themeColor="textSecondary">
-                          promemoria {SLOTS[slot].time}
-                        </ThemedText>
-                      </View>
-                      <ThemedText style={styles.currentValue}>
-                        {typeof todayEntry?.[slot] === 'number' ? todayEntry[slot] : '-'}
-                      </ThemedText>
-                    </View>
-                    <IntensityControl
-                      value={todayEntry?.[slot]}
-                      onChange={(value) => handleRecord(slot, value)}
-                    />
-                  </ThemedView>
+                  <CheckCard
+                    key={slot}
+                    slot={slot}
+                    entry={todayEntry}
+                    onRecord={handleRecord}
+                    onMedicationPress={openMedicationInput}
+                  />
                 ))}
               </View>
 
@@ -243,7 +254,14 @@ export default function HomeScreen() {
                 <ThemedText type="subtitle">Medicinale</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
                   {medicationPrompt
-                    ? `${SLOTS[medicationPrompt.slot].label}, intensita ${medicationPrompt.intensity}`
+                    ? [
+                        SLOTS[medicationPrompt.slot].label,
+                        typeof medicationPrompt.intensity === 'number'
+                          ? `intensita ${medicationPrompt.intensity}`
+                          : undefined,
+                      ]
+                        .filter(Boolean)
+                        .join(', ')
                     : ''}
                 </ThemedText>
               </View>
@@ -346,6 +364,48 @@ export default function HomeScreen() {
   );
 }
 
+type CheckCardProps = {
+  entry?: HeadacheEntry;
+  onMedicationPress: (slot: HeadacheSlot) => void;
+  onRecord: (slot: HeadacheSlot, intensity: number) => void;
+  slot: HeadacheSlot;
+};
+
+function CheckCard({ entry, onMedicationPress, onRecord, slot }: CheckCardProps) {
+  const medication = getMedication(entry, slot);
+
+  return (
+    <ThemedView type="backgroundElement" style={styles.checkCard}>
+      <View style={styles.checkHeader}>
+        <View>
+          <ThemedText type="smallBold">{SLOTS[slot].label}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            promemoria {SLOTS[slot].time}
+          </ThemedText>
+        </View>
+        <ThemedText style={styles.currentValue}>
+          {typeof entry?.[slot] === 'number' ? entry[slot] : '-'}
+        </ThemedText>
+      </View>
+      <IntensityControl value={entry?.[slot]} onChange={(value) => onRecord(slot, value)} />
+      <View style={styles.medicationRow}>
+        <View style={styles.medicationText}>
+          <ThemedText type="smallBold">Medicinale</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+            {medication ?? 'Nessun medicinale'}
+          </ThemedText>
+        </View>
+        <ThemedText
+          type="linkPrimary"
+          onPress={() => onMedicationPress(slot)}
+          accessibilityRole="button">
+          {medication ? 'Cambia' : 'Aggiungi'}
+        </ThemedText>
+      </View>
+    </ThemedView>
+  );
+}
+
 const styles = StyleSheet.create({
   checkCard: {
     borderCurve: 'continuous',
@@ -406,6 +466,16 @@ const styles = StyleSheet.create({
     maxWidth: 420,
     padding: Spacing.three,
     width: '100%',
+  },
+  medicationRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: Spacing.three,
+    justifyContent: 'space-between',
+  },
+  medicationText: {
+    flex: 1,
+    gap: Spacing.half,
   },
   modalActions: {
     flexDirection: 'row',
@@ -468,9 +538,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     padding: Spacing.three,
+    position: 'relative',
   },
   summaryContent: {
     gap: Spacing.one,
+  },
+  summaryAction: {
+    bottom: 0,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: Spacing.three,
+    top: 0,
   },
   suggestionButton: {
     borderRadius: 20,

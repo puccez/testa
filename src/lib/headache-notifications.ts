@@ -29,7 +29,7 @@ type HeadacheNotificationData = {
 
 export type HeadacheMedicationPromptRequest = {
   dateKey: string;
-  intensity: number;
+  intensity?: number;
   slot: HeadacheSlot;
 };
 
