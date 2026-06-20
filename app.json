@@ -8,7 +8,9 @@
     "scheme": "headachetracker",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.ppucc.headache-tracker",
+      "appleTeamId": "M3Y7QN666S"
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +19,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.ppucc.headachetracker"
     },
     "web": {
       "output": "static",
@@ -35,7 +38,15 @@
           }
         }
       ],
-      "expo-widgets"
+      [
+        "expo-notifications",
+        {
+          "enableBackgroundRemoteNotifications": false
+        }
+      ],
+      "./plugins/with-local-notifications-only",
+      "expo-font",
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true,

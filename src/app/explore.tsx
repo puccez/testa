@@ -58,6 +58,8 @@ export default function DetailsScreen() {
 
   return (
     <ScrollView
+      automaticallyAdjustContentInsets={false}
+      contentInsetAdjustmentBehavior="never"
       style={[styles.scrollView, { backgroundColor: theme.background }]}
       contentInset={insets}
       contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}>
@@ -196,6 +198,8 @@ const styles = StyleSheet.create({
   rowValue: {
     fontSize: 28,
     fontVariant: ['tabular-nums'],
+    lineHeight: 36,
+    minHeight: 36,
     minWidth: 32,
     textAlign: 'right',
   },
