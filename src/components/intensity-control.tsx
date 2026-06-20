@@ -4,20 +4,19 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { HEADACHE_INTENSITY_LEVELS, HeadacheIntensity } from '@/lib/headache-log';
 
 type IntensityControlProps = {
-  value?: number;
-  onChange: (value: number) => void;
+  value?: HeadacheIntensity;
+  onChange: (value: HeadacheIntensity) => void;
 };
-
-const LEVELS = [0, 1, 2, 3, 4];
 
 export function IntensityControl({ value, onChange }: IntensityControlProps) {
   const theme = useTheme();
 
   return (
     <View style={styles.container}>
-      {LEVELS.map((level) => {
+      {HEADACHE_INTENSITY_LEVELS.map((level) => {
         const isSelected = value === level;
 
         return (
@@ -80,4 +79,3 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
 });
-

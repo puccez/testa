@@ -2,11 +2,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type HeadacheSlot = 'afternoon' | 'evening';
 
+export const HEADACHE_INTENSITY_LEVELS = [0, 1, 2, 3, 4] as const;
+
+export type HeadacheIntensity = (typeof HEADACHE_INTENSITY_LEVELS)[number];
+
 export type HeadacheEntry = {
   date: string;
-  afternoon?: number;
+  afternoon?: HeadacheIntensity;
   afternoonMedication?: string;
-  evening?: number;
+  evening?: HeadacheIntensity;
   eveningMedication?: string;
   updatedAt: string;
 };
@@ -38,6 +42,10 @@ export function parseDateKey(dateKey: string) {
   return new Date(year, month - 1, day);
 }
 
+export function isHeadacheIntensity(value: number): value is HeadacheIntensity {
+  return (HEADACHE_INTENSITY_LEVELS as readonly number[]).includes(value);
+}
+
 export function formatDateLabel(dateKey: string) {
   return new Intl.DateTimeFormat('it-IT', {
     weekday: 'short',
@@ -51,15 +59,15 @@ export function getIntensity(entry?: HeadacheEntry) {
     return undefined;
   }
 
-  const values = [entry.afternoon, entry.evening].filter((value): value is number => {
-    return typeof value === 'number';
+  const values = [entry.afternoon, entry.evening].filter((value): value is HeadacheIntensity => {
+    return typeof value === 'number' && isHeadacheIntensity(value);
   });
 
   if (values.length === 0) {
     return undefined;
   }
 
-  return Math.max(...values);
+  return Math.max(...values) as HeadacheIntensity;
 }
 
 export function getRecordedCheckCount(entry?: HeadacheEntry) {
@@ -131,7 +139,7 @@ export async function saveHeadacheLog(log: HeadacheLog) {
 
 export async function saveHeadacheIntensity(
   slot: HeadacheSlot,
-  intensity: number,
+  intensity: HeadacheIntensity,
   dateKey = getDateKey()
 ) {
   const log = await loadHeadacheLog();

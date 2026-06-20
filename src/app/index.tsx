@@ -28,6 +28,7 @@ import {
   getMedicationSuggestions,
   getRecordedCheckCount,
   HeadacheEntry,
+  HeadacheIntensity,
   HeadacheSlot,
 } from '@/lib/headache-log';
 import {
@@ -151,7 +152,7 @@ export default function HomeScreen() {
     setDebugNotificationStatus(sent ? 'sent' : 'denied');
   }
 
-  async function handleRecord(slot: HeadacheSlot, intensity: number) {
+  async function handleRecord(slot: HeadacheSlot, intensity: HeadacheIntensity) {
     await recordIntensity(slot, intensity);
   }
 
@@ -405,7 +406,7 @@ export default function HomeScreen() {
 type CheckCardProps = {
   entry?: HeadacheEntry;
   onMedicationPress: (slot: HeadacheSlot) => void;
-  onRecord: (slot: HeadacheSlot, intensity: number) => void;
+  onRecord: (slot: HeadacheSlot, intensity: HeadacheIntensity) => void;
   slot: HeadacheSlot;
 };
 
@@ -565,6 +566,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   secondaryButton: {
+    alignItems: 'center',
     borderRadius: 20,
     minWidth: 86,
     paddingHorizontal: Spacing.three,

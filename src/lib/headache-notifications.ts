@@ -1,7 +1,14 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-import { HeadacheSlot, getDateKey, saveHeadacheIntensity } from '@/lib/headache-log';
+import {
+  HEADACHE_INTENSITY_LEVELS,
+  HeadacheIntensity,
+  HeadacheSlot,
+  getDateKey,
+  isHeadacheIntensity,
+  saveHeadacheIntensity,
+} from '@/lib/headache-log';
 
 export const HEADACHE_CATEGORY = 'headache_check';
 export const HEADACHE_CHANNEL = 'headache-checks';
@@ -13,13 +20,9 @@ export const NOTIFICATION_IDS: Record<HeadacheSlot, string> = {
 
 const ACTION_PREFIX = 'headache_intensity_';
 
-const ACTIONS: Notifications.NotificationAction[] = [
-  { identifier: `${ACTION_PREFIX}0`, buttonTitle: 'No' },
-  { identifier: `${ACTION_PREFIX}1`, buttonTitle: '1' },
-  { identifier: `${ACTION_PREFIX}2`, buttonTitle: '2' },
-  { identifier: `${ACTION_PREFIX}4`, buttonTitle: '3+' },
-].map((action) => ({
-  ...action,
+const ACTIONS: Notifications.NotificationAction[] = HEADACHE_INTENSITY_LEVELS.map((level) => ({
+  identifier: `${ACTION_PREFIX}${level}`,
+  buttonTitle: `${level}`,
   options: { opensAppToForeground: true },
 }));
 
@@ -31,7 +34,7 @@ type HeadacheNotificationData = {
 export type HeadacheMedicationPromptRequest = {
   dateKey: string;
   isDebug?: boolean;
-  intensity?: number;
+  intensity?: HeadacheIntensity;
   slot: HeadacheSlot;
 };
 
@@ -49,9 +52,15 @@ export function parseIntensityAction(actionIdentifier: string) {
     return undefined;
   }
 
-  const value = Number(actionIdentifier.replace(ACTION_PREFIX, ''));
+  const rawValue = actionIdentifier.slice(ACTION_PREFIX.length);
 
-  return Number.isFinite(value) ? value : undefined;
+  if (!/^\d+$/.test(rawValue)) {
+    return undefined;
+  }
+
+  const value = Number(rawValue);
+
+  return isHeadacheIntensity(value) ? value : undefined;
 }
 
 export async function configureHeadacheNotificationActions() {
@@ -165,7 +174,7 @@ export async function sendTestHeadacheNotification() {
   await Notifications.scheduleNotificationAsync({
     content: {
       title: 'Notifica di test',
-      body: 'Scegli un valore: il test non salva dati.',
+      body: 'Scegli un valore da 0 a 4: il test non salva dati.',
       categoryIdentifier: HEADACHE_CATEGORY,
       data: { debug: true, slot },
     },

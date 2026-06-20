@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import {
+  HeadacheIntensity,
   HeadacheLog,
   HeadacheSlot,
   clearHeadacheLog,
@@ -78,7 +79,7 @@ export function useHeadacheLog() {
   }, [refresh]);
 
   const recordIntensity = useCallback(
-    async (slot: HeadacheSlot, intensity: number) => {
+    async (slot: HeadacheSlot, intensity: HeadacheIntensity) => {
       const nextLog = await saveHeadacheIntensity(slot, intensity);
       mutationVersion += 1;
       publishLog(nextLog);
